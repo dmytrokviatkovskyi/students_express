@@ -1,0 +1,25 @@
+<!--view table of students-->
+<table>
+    <thead>
+    <tr>
+       <th scope="col">ID</th>
+        <th scope="col">Ім'я</th>
+        <th scope="col">Клас</th>
+        <th scope="col">Роль</th>
+        <th scope="col">Тип атаки</th>
+        <th scope="col">Дата створення</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{#each weapons}}
+        <tr>
+           <th scope="row">{{this.id}}</th>
+            <td><strong>{{this.name}}</strong></td>
+            <td>{{this.hero_class}}</td>
+            <td>{{this.role}}</td>
+            <td>{{this.attack_type}}</td>
+            <td>{{this.created_at}}</td>
+        </tr>
+    {{/each}}
+    </tbody>
+</table>
