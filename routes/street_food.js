@@ -39,7 +39,7 @@ router.get('/', async function (req, res, next) {
   try {
     const result = await db.query('SELECT * FROM street_food ORDER BY id ASC');
 
-    const food = (result.rows || []).map((item) => {
+    const preparedStreetFood = (result.rows || []).map((item) => {
       const date = new Date(item.created_at);
 
       const formattedDate = new Intl.DateTimeFormat('uk-UA', {
@@ -51,10 +51,7 @@ router.get('/', async function (req, res, next) {
         hour12: false
       }).format(date);
 
-      const formattedPrice =
-        item.price !== null && item.price !== undefined
-          ? `$${Number(item.price).toFixed(2)}`
-          : '—';
+      const formattedPrice = (item.price ?? null) !== null ? `$${Number(item.price).toFixed(2)}` : '—';
 
       return {
         ...item,
@@ -66,7 +63,7 @@ router.get('/', async function (req, res, next) {
     res.render('street_food', {
       title: 'Street Food',
       isForm: false,
-      food
+      food: preparedStreetFood
     });
   } catch (err) {
     next(err);
