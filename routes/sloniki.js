@@ -31,9 +31,7 @@ router.post('/create', async function(req, res, next) {
     
     res.redirect('/sloniki');
   } catch (err) {
-    console.log(err)
-    const errorMessage = err.message;
-    console.log("Error message: ", errorMessage);
+    const errorMessage = err.message
     // res.status(500).send(`!! Error registering slonik: this slonik: @${username} is already exist`);
     res.render('forms/sloniki/sloniki_form', {
       errorUsername: errorMessage.includes("username") ? errorMessage : null,
