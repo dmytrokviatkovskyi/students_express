@@ -14,7 +14,6 @@ const pool = new Pool({
     }
 });
 
-
 const createTableQueries = [];
 createTableQueries.push(`
     CREATE TABLE IF NOT EXISTS heroes (
