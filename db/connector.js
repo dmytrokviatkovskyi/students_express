@@ -77,6 +77,17 @@ createTableQueries.push(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 `);
+createTableQueries.push(`
+    CREATE TABLE IF NOT EXISTS gym2 (
+    id SERIAL PRIMARY KEY,
+    exercise_name TEXT NOT NULL,              
+    difficult_level TEXT NOT NULL,        
+    required_level TEXT NOT NULL,       
+    muscle_name TEXT NOT NULL,           
+    sets TEXT NOT NULL,                
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+      `);
    
 for await (const query of createTableQueries) {
     try {
