@@ -2,7 +2,18 @@ import express from 'express';
 const router = express.Router();
 import db from '../db/connector.js';
 
+const validateCarData = (data) => {
+  const errors = [];
+  if (data.horsepower < 0) errors.push('Помилка: потужність може бути тільки додатня.');
+  if (data.weight < 0) errors.push('Помилка: вага може бути тільки додатня.');
+  if (data.acceleration_0_to_100 < 0) errors.push('Помилка: час розгону може бути тільки додатнім.');
+  if (data.price < 0) errors.push('Помилка: ціна може бути тільки додатня.');
+  return errors;
+};
+
+
 router.get('/', async function(req, res, next) {
+  console.log("Зайшли на головну сторінку!"); 
   try {
     const cars = await db.query('SELECT * FROM cars ORDER BY id ASC');
     const rowCars = cars.rows.map(s => {
@@ -13,36 +24,48 @@ router.get('/', async function(req, res, next) {
       }
     });
 
-    res.render('cars', { cars: rowCars || [] });
+    res.render('cars', { 
+        cars: rowCars || [], 
+        showList: true,   
+        showForm: false 
+    });
   } catch (error) {
     console.error('Помилка при завантаженні машин:', error);
     res.status(500).send('Помилка сервера при завантаженні даних');
   }
 });
 
+router.get('/new', (req, res) => {
+  console.log("Зайшли на сторінку створення!");
+  res.render('cars', { 
+      showList: false,  
+      showForm: true,   
+      editingCar: null 
+  });
+});
+
 
 router.post('/', async (req, res) => {
-  const { car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price } = req.body; 
+  const { car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price, image_url } = req.body; 
 
-  if (horsepower < 0 || weight < 0 || acceleration_0_to_100 < 0 || price < 0) {
-    return res.status(400).send('Помилка: Значення потужності, ваги, розгону та ціни можуть бути тільки додатні!');
+  const validationErrors = validateCarData(req.body);
+  if (validationErrors.length > 0) {
+    return res.status(400).send(validationErrors.join('<br>')); 
   }
 
   try {
     await db.query(
       `INSERT INTO cars 
-      (car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price]
+      (car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price, image_url) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price, image_url] 
     );
-    
-    res.redirect('/cars'); 
+    res.redirect('/'); 
   } catch (error) {
     console.error('Помилка при створенні машини:', error);
     res.status(500).send('Помилка при збереженні в базу даних');
   }
 });
-
 
 
 router.get('/edit/:id', async (req, res) => {
@@ -53,17 +76,9 @@ router.get('/edit/:id', async (req, res) => {
       return res.status(404).send('Машину не знайдено');
     }
 
-    const allCars = await db.query('SELECT * FROM cars ORDER BY id ASC');
-    const rowCars = allCars.rows.map(s => {
-      return {
-        ...s,
-        created_at_time: s.created_at.toLocaleTimeString(), 
-        created_at_date: s.created_at.toLocaleDateString()
-      }
-    });
-
     res.render('cars', { 
-      cars: rowCars || [], 
+      showList: false,  
+      showForm: true,   
       editingCar: carResult.rows[0] 
     });
   } catch (error) {
@@ -72,35 +87,13 @@ router.get('/edit/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
-
-  const { car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price, image_url } = req.body; 
-
-  if (horsepower < 0 || weight < 0 || acceleration_0_to_100 < 0 || price < 0) {
-    return res.status(400).send('Помилка: Значення можуть бути тільки додатні!');
-  }
-
-  try {
-    await db.query(
-      `INSERT INTO cars 
-      (car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price, image_url) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price, image_url] 
-    );
-    res.redirect('/cars'); 
-  } catch (error) {
-    console.error('Помилка при створенні машини:', error);
-    res.status(500).send('Помилка при збереженні в базу даних');
-  }
-});
-
 router.post('/edit/:id', async (req, res) => {
   const carId = req.params.id;
-
   const { car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price, image_url } = req.body; 
 
-  if (horsepower < 0 || weight < 0 || acceleration_0_to_100 < 0 || price < 0) {
-    return res.status(400).send('Помилка: Значення можуть бути тільки додатні!');
+  const validationErrors = validateCarData(req.body);
+  if (validationErrors.length > 0) {
+    return res.status(400).send(validationErrors.join('<br>'));
   }
 
   try {
@@ -117,7 +110,7 @@ router.post('/edit/:id', async (req, res) => {
       WHERE id = $9`,
       [car_brand, car_model, engine_type, horsepower, weight, acceleration_0_to_100, price, image_url, carId] 
     );
-    res.redirect('/cars');
+    res.redirect('/'); 
   } catch (error) {
     console.error('Помилка при оновленні:', error);
     res.status(500).send('Помилка сервера при оновленні');
@@ -126,7 +119,6 @@ router.post('/edit/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   const carId = req.params.id;
-
   try {
     await db.query('DELETE FROM cars WHERE id = $1', [carId]);
     res.status(200).json({ message: 'Машину успішно видалено!' });
