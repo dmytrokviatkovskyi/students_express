@@ -46,6 +46,9 @@ router.get('/edit/:id', async (req, res) => {
     }
 });
 
+
+
+
 // UPDATE
 router.post('/edit/:id', async (req, res) => {
     const { street, house_area, rooms_count, floors_count, house_color, plot_area, has_garage, is_renovated, extra_info } = req.body;

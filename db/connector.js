@@ -164,6 +164,8 @@ createTableQueries.push(`CREATE TABLE IF NOT EXISTS heroes_mlbb (
 
 `);
 
+
+
 createTableQueries.push(`
     CREATE TABLE IF NOT EXISTS houses (
         id SERIAL PRIMARY KEY,
