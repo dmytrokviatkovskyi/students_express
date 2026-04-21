@@ -3,6 +3,69 @@ import bcrypt from "bcrypt";
 const router = express.Router();
 import db from "../db/connector.js";
 
+class CatData {
+  constructor(data) {
+    this.name = data.name || "Unknown";
+    this.breed = data.breed || "UNknown";
+    this.age = parseInt(data.age_years, 10);
+    this.weight = parseFloat(data.weight_kg);
+    this.favorite_food = data.favorite_food;
+    this.hasMicrochip = data.has_microchip;
+    this.ownerContact = data.owner_contact;
+    this.characterNotes = data.character_notes;
+    this.username = data.owner_name || "Unknown Owner";
+    this.createdAt = data.created_at
+      ? new Date(data.created_at).toLocaleString('uk-UA') 
+      : "Unknown";
+    this.email = data.email;
+    this.password = data.password;
+  }
+
+  display() {
+    console.log(`\n--- [CAT: ${this.name.toUpperCase()}] ---`);
+    console.table({
+      "Breed": this.breed,
+      "Age": `${this.age} years`,
+      "Weight": `${this.weight} kg`,
+      "Favorite Food": this.favorite_food,
+      "Microchip": this.hasMicrochip ? "Yes" : "No",
+      "Owner": this.username,
+      "Email": this.email,
+      "Contact": this.ownerContact
+
+    });
+    console.log("Created at:", this.createdAt);
+    console.log("Notes:", this.characterNotes || "No notes provided.");
+    console.log("-----------------------");
+  }
+}
+
+const showExistingCats = async () => {
+  try {
+    const result = await db.query(`
+      SELECT cats.*, users_cats.username as owner_name,
+      users_cats.email
+      FROM cats
+      LEFT JOIN users_cats ON cats.user_id = users_cats.id
+      `);
+
+      if (result.rows.length === 0) {
+        console.log("\n[CAT NET] The database is empty. There are no cats yet.");
+      } else {
+        console.log(`\n[CAT NET] Found cats in the database: ${result.rows.length}`);
+        result.rows.forEach(row => {
+          const cat = new CatData(row);
+          cat.display();
+        });
+      }
+  } catch (err) {
+    console.error("\n[ERROR] Failed to output data to the console:", err.message);
+  }
+};
+
+showExistingCats();
+
+
 const validateEmail = (email) => {
   const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!email || email.trim().length === 0) return "Email is required";
