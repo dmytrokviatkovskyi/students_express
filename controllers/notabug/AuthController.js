@@ -2,6 +2,7 @@ import db from '../../db/connector.js';
 import bcrypt from 'bcrypt';
 import { NotabugDB } from './NotabugDB.js';
 import { NotabugHelpers } from './NotabugHelpers.js';
+import NotabugUser from '../../models/notabug/NotabugUser.js';
 
 export class AuthController {
   static async getRegister(req, res, next) {
@@ -18,30 +19,18 @@ export class AuthController {
 
   static async postRegister(req, res, next) {
     try {
-      const { username, password, confirmPassword, email } = req.body;
-
-      if (!NotabugHelpers.validateUsername(username)) {
+      let user;
+      try {
+        user = new NotabugUser(req.body);
+        user.validate();
+      } catch (validationErr) {
         return res.status(400).render('notabug/register', {
-          error: 'Username must be 3-30 characters, alphanumeric with - and _ only',
+          error: validationErr.message,
           layout: 'layout'
         });
       }
 
-      if (!NotabugHelpers.validatePassword(password)) {
-        return res.status(400).render('notabug/register', {
-          error: 'Password must be 6-100 characters',
-          layout: 'layout'
-        });
-      }
-
-      if (password !== confirmPassword) {
-        return res.status(400).render('notabug/register', {
-          error: 'Passwords do not match',
-          layout: 'layout'
-        });
-      }
-
-      const existing = await NotabugDB.getUserByUsername(username);
+      const existing = await NotabugDB.getUserByUsername(user.username);
       if (existing) {
         return res.status(400).render('notabug/register', {
           error: 'Username already taken',
@@ -49,15 +38,15 @@ export class AuthController {
         });
       }
 
-      const passwordHash = await bcrypt.hash(password, 10);
+      const passwordHash = await bcrypt.hash(user.password, 10);
       await db.query(
         'INSERT INTO notabug_users (username, password_hash, email, sanity, reputation, balance) VALUES ($1, $2, $3, 100, 0, 0)',
-        [username, passwordHash, email || null]
+        [user.username, passwordHash, user.email]
       );
 
-      await NotabugDB.addFeedEvent(`<span class="user-ref">@${username}</span> joined the hunters`);
+      await NotabugDB.addFeedEvent(`<span class="user-ref">@${user.username}</span> joined the hunters`);
 
-      res.cookie('notabug_hunter', username, {
+      res.cookie('notabug_hunter', user.username, {
         maxAge: 24 * 60 * 60 * 1000,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -84,24 +73,27 @@ export class AuthController {
 
   static async postLogin(req, res, next) {
     try {
-      const { username, password } = req.body;
-
-      if (!NotabugHelpers.validateUsername(username) || !password) {
+      let user;
+      try {
+        user = new NotabugUser({ username: req.body.username, password: req.body.password });
+        user.validateUsername();
+        user.validatePassword();
+      } catch (validationErr) {
         return res.status(400).render('notabug/login', {
           error: 'Invalid username or password',
           layout: 'layout'
         });
       }
 
-      const user = await NotabugDB.getUserByUsername(username);
-      if (!user) {
+      const record = await NotabugDB.getUserByUsername(user.username);
+      if (!record) {
         return res.status(400).render('notabug/login', {
           error: 'Invalid username or password',
           layout: 'layout'
         });
       }
 
-      const validPassword = await bcrypt.compare(password, user.password_hash);
+      const validPassword = await bcrypt.compare(user.password, record.password_hash);
       if (!validPassword) {
         return res.status(400).render('notabug/login', {
           error: 'Invalid username or password',
@@ -109,7 +101,7 @@ export class AuthController {
         });
       }
 
-      res.cookie('notabug_hunter', username, {
+      res.cookie('notabug_hunter', user.username, {
         maxAge: 24 * 60 * 60 * 1000,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

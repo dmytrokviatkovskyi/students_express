@@ -1,6 +1,7 @@
 import db from '../../db/connector.js';
 import { NotabugDB } from './NotabugDB.js';
 import { NotabugHelpers } from './NotabugHelpers.js';
+import NotabugBug from '../../models/notabug/NotabugBug.js';
 
 export class ReportController {
   static async getReport(req, res, next) {
@@ -28,22 +29,31 @@ export class ReportController {
         });
       }
 
-      let { title, description, severity, bounty, steps } = req.body;
-      if (!title || !severity) return res.redirect('/notabug/report');
-
-      const validSeverities = ['low', 'medium', 'high', 'critical'];
-      if (!validSeverities.includes(severity)) severity = 'medium';
+      let bug;
+      try {
+        bug = new NotabugBug(req.body);
+        bug.validate();
+      } catch (validationErr) {
+        const stats = await NotabugDB.getGlobalStats();
+        return res.status(400).render('notabug/report', {
+          ...NotabugHelpers.buildBaseContext(stats),
+          error: validationErr.message,
+          layout: 'layout'
+        });
+      }
 
       const chaos = Math.floor(Math.random() * 60) + 10;
       const unstable = Math.random() > 0.6;
 
+      const params = bug.toInsertParams();
+
       if (Math.random() > 0.7) {
-        description = (description || '') + ' [SYSTEM: description altered by entropy daemon]';
+        params[1] = (params[1] || '') + ' [SYSTEM: description altered by entropy daemon]';
       }
 
       const result = await db.query(
-        'INSERT INTO notabug_bugs (title, description, severity, chaos_level, status, bounty, steps_to_reproduce) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-        [title, description || 'No description provided.', severity, chaos, 'open', bounty ? parseInt(bounty) : null, steps || null]
+        'INSERT INTO notabug_bugs (title, description, severity, bounty, steps_to_reproduce, chaos_level, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+        [...params, chaos, 'open']
       );
 
       const bugId = result.rows[0].id;
@@ -53,7 +63,7 @@ export class ReportController {
         await NotabugDB.addMutation(bugId, 'Marked as unstable by system');
       }
 
-      await NotabugDB.addFeedEvent(`New bug <span class="bug-ref">#${bugId}</span> reported: <span class="highlight">${title}</span>`);
+      await NotabugDB.addFeedEvent(`New bug <span class="bug-ref">#${bugId}</span> reported: <span class="highlight">${bug.title}</span>`);
 
       res.redirect('/notabug/bug/' + bugId);
     } catch (err) {
